@@ -1,9 +1,14 @@
 # Handoff — where Task2Day stands
 
-Updated for build `2026-08-09.2`. Read this first in a new session; the README has
+Updated for build `2026-08-10.1`. Read this first in a new session; the README has
 the architecture, this has the state and the traps.
 
-**New in `2026-08-09.2`:** **every deletion asks first** — tasks, badges,
+**New in `2026-08-10.1`:** a **skipped task is struck through and sinks**, like
+a finished one, on Today and in Plan — one `settledOn(t,date)` predicate drives
+both the strike and the ordering, so the two can never disagree. No schema
+change.
+
+**In `2026-08-09.2`:** **every deletion asks first** — tasks, badges,
 repeat rules, routines, goals, subjects and cards all route through one
 `confirmDelete` dialog that names the thing and states what goes with it.
 Existing undo stays. No schema change.
