@@ -222,6 +222,27 @@ day. The Dashboard points to the newest unreviewed past day so its missing
 reasons and 0–10 satisfaction score can be filled later; completing that review
 updates the existing history record without carrying the tasks a second time.
 
+## A skipped task reads like a finished one
+
+Skipping used to leave the row upright with a small tag on it, so a list you
+had already ruled on looked exactly like work still waiting. A skipped task is
+now **struck through and dimmed**, the same as a completed one, and **every
+struck row sinks to the bottom** — on Today within its session, and in Plan
+across the whole list.
+
+One predicate decides both, so a row can never look settled and sort as open,
+or the reverse:
+
+```
+settledOn(t, date) = t.done || (t.skipReason && t.skippedOn === date)
+```
+
+The date matters. A skip belongs to the day it was made for, so it counts on
+Today against the day being viewed and in Plan against the day the task sits
+on — reading both against the viewed date was why a task skipped for a future
+date looked ordinary in Plan. Unskipping reverses all of it: the strike clears
+and the row climbs back to its place.
+
 ## Deleting asks first
 
 Every destructive action goes through one dialog: tasks and their breakdowns,
