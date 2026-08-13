@@ -1,0 +1,17 @@
+{
+  "//": "REFERENCE ONLY — this file is deliberately NOT wired into firebase.json, because deploying rules REPLACES whatever is live and there is no undo. Compare it against your current rules in the console (Realtime Database -> Rules) and apply the config block by hand. The only change push needs is that config/vapidPublicKey be world-readable: the client reads it before anyone has signed in, and it is a public key, so there is nothing in it to protect. The users/$uid block below is what the app has always needed and is here so the whole picture is in one place.",
+  "rules": {
+    "config": {
+      "vapidPublicKey": {
+        ".read": true,
+        ".write": false
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
