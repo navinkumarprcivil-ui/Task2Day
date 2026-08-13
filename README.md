@@ -158,6 +158,22 @@ signed-in user; RTDB rules cascade permissively, so a deeper `true` overrides th
 root `false` for that path and nothing else. `users` itself stays unreadable, so
 no one can enumerate accounts.
 
+Push adds exactly one more node, and it is deliberately public:
+
+```json
+    "config": {
+      "vapidPublicKey": { ".read": true, ".write": false }
+    }
+```
+
+The client reads that key **before anyone has signed in**, so it cannot sit
+behind an `auth != null` grant; it is a public key, so there is nothing in it to
+protect. `.write: false` keeps every client out — the Cloud Function writes it
+through the Admin SDK, which bypasses rules entirely. `database.rules.json` in
+the repo holds the whole ruleset for reference and is deliberately **not** wired
+into `firebase.json`: deploying rules replaces what is live with no undo, so
+compare and apply that block by hand in the console.
+
 ## Working on it
 
 `index.html` is **not hand-editable** — it is a self-contained bundle with
@@ -185,6 +201,10 @@ codebase has already produced.
 | `icon-maskable-512.png` | Padded Task2Day icon for Android maskable shapes |
 | `apple-touch-icon.png` / `favicon-32.png` | Apple home-screen and browser-tab icons |
 | `vercel.json` | Cache and security headers for the Vercel deploy |
+| `functions/index.js` | Scheduled Cloud Function — the Web Push sender |
+| `functions/package.json` | Its dependencies; `firebase-admin`, `web-push` |
+| `firebase.json` | Functions deploy config. Deliberately has no `database` block |
+| `database.rules.json` | The ruleset, for reference — apply by hand, never deploy blind |
 | `tools/bundle.py` | Unpack/pack the islands inside `index.html` |
 | `tools/preview.py` | Build a sign-in-stubbed copy for testing |
 | `HANDOFF.md` | Current state, outstanding actions, known traps |
@@ -560,6 +580,79 @@ be granted, the switch on, and every alert still fail with nothing in the UI
 to explain it. `notify()` goes through `navigator.serviceWorker.ready` and
 `showNotification`, keeps the constructor as a desktop fallback, and returns a
 promise so the test button can report what actually happened.
+
+## Reminders that fire with the app closed
+
+Everything the page can do for itself needs the page to be running. `checkReminder`
+is driven by the in-app clock, so it fires while you are looking at Task2Day and
+never once the tab is gone — which is exactly when a reminder would have earned
+its keep. Web Push is the only way out of that, and Web Push needs a server
+holding a private key.
+
+There are therefore **two switches** in Settings, and they promise different
+things. *Scheduled alerts* rings while the app runs. *Reach me with the app
+closed* registers the device with the push service and hands the endpoint to
+the server, which rings anyway.
+
+**The client half** (`sw.js` plus the push methods in the template):
+
+* The VAPID public key is **not** compiled into the bundle. The function
+  publishes it to `config/vapidPublicKey` on every run and the client reads it
+  from there, so rotating a key never means rebuilding a 0.9 MB self-contained
+  file — and no private key comes near this repository.
+* The browser's own subscription is the source of truth. It survives a
+  reinstall and dies with the browser profile, neither of which the cloud copy
+  can know about, so `refreshPush()` reads it back on every session rather than
+  trusting a persisted flag. `pushOn` is **not** in `PERSIST_KEYS` for the same
+  reason: it is per device, and syncing it would have one phone claiming the
+  other phone's registration.
+* A database read has no timeout of its own. Offline, `once('value')` never
+  settles at all, so the key lookup is raced against 8 seconds — without that
+  the switch sits on "Working…" for as long as the app stays open. A failed
+  read is not cached: the key is not absent, it is out of reach.
+* The worker's `push` handler **must** show a notification for every push it
+  receives. Every browser that implements Web Push requires it, and swallowing
+  one silently costs the app its permission.
+* `pushsubscriptionchange` cannot re-subscribe on its own — it has no page to
+  ask — so it messages the clients and the page re-registers.
+* Signing out unregisters the device, or a shared machine keeps buzzing with
+  the previous account's work.
+
+**The server half** is `functions/index.js`, a scheduled function. It is not
+deployed by anything in this repo and costs nothing until it is; while it is
+absent the switch says so plainly rather than failing when tapped.
+
+```bash
+cd functions && npm install
+npx web-push generate-vapid-keys          # keep the private one out of git
+
+firebase functions:secrets:set VAPID_PUBLIC_KEY
+firebase functions:secrets:set VAPID_PRIVATE_KEY
+firebase functions:secrets:set VAPID_SUBJECT     # mailto:you@example.com
+
+firebase deploy --only functions
+```
+
+A scheduled function needs the **Blaze** plan — that is the whole cost of this
+feature, and at one run every fifteen minutes it sits inside the free grant.
+The function publishes the public key on its first run, so the app's switch
+turns from "no push server is set up" to working without a redeploy of the page.
+
+Things it gets right that are easy to get wrong:
+
+* **Timezone is per device, not per account.** The same account on a laptop in
+  Chennai and a phone in Berlin is two different 07:00, so the zone rides on
+  the subscription row. An unresolvable zone name falls back to the offset the
+  device recorded — wrong by at most a daylight-saving hour, which still beats
+  sending at three in the morning.
+* **Dates are local `YYYY-MM-DD`, never UTC instants**, on the server exactly as
+  on the client. `toISOString()` lands on the wrong day outside Greenwich and
+  would send Tuesday's list on Monday night.
+* **One notification per device per local day.** A scheduler retry is normal;
+  `sentOn` is what stops it becoming a second buzz. A day with nothing to say
+  still stamps `sentOn`, or every run until midnight re-decides the same account.
+* **404 and 410 mean gone for good.** Those endpoints are deleted rather than
+  retried; a list of dead endpoints is how a project spends its quota on nobody.
 
 ## The back button, and leaving
 
@@ -971,10 +1064,12 @@ instructions rather than observations — they name the thing to change and wher
    *(Note: `componentDidUpdate` is called by the DC runtime with `prevProps` only — there is no
    `prevState` argument. Comparing against one throws inside a runtime `try/catch`, which
    silently disables the save. Track previous values yourself; see the comment on that method.)*
-2. **Notifications cannot fire when the browser is closed.** The page's timers only run while it
-   is alive. An installed PWA can notify while backgrounded on Android; iOS is stricter. Real
-   scheduled alarms need a server pushing to a native app or Web Push with a subscription —
-   `sw.js` already handles `notificationclick`, so the client half is ready.
+2. **In-page reminders still cannot fire when the browser is closed** — the page's timers only
+   run while it is alive, and no amount of client code changes that. What closes the gap is the
+   second switch, *Reach me with the app closed*: Web Push, driven by the scheduled Cloud
+   Function in `functions/`. Until that function is deployed the switch says so and the old limit
+   stands; after it, reminders arrive whether or not the app is open. iOS requires the app be
+   added to the home screen before it will grant push at all.
 3. **There is no seed data.** A new account starts genuinely empty and every screen has an
    empty state. Nothing in the render path may assume a non-empty array — that was the whole
    class of crash when the demo data came out.

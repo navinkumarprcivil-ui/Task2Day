@@ -5,3 +5,6 @@ build/
 tools/
 README.md
 HANDOFF.md
+functions/
+firebase.json
+database.rules.json

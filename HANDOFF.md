@@ -1,9 +1,28 @@
 # Handoff — where Task2Day stands
 
-Updated for build `2026-08-10.1`. Read this first in a new session; the README has
+Updated for build `2026-08-13.1`. Read this first in a new session; the README has
 the architecture, this has the state and the traps.
 
-**New in `2026-08-10.1`:** a **skipped task is struck through and sinks**, like
+**New in `2026-08-13.1`:** a **day now shows the work it missed**, struck
+through, on the day it missed it — the review and the midnight carry both move
+the task to another date, so the day it was actually missed on had no row left
+to strike and read as though nothing had been asked of it; the account is
+replayed out of `history[date].skips`. **Weekly repeats take several weekdays**
+(`days[]` was always an array; only the form was single-valued). **`state.backlog`
+is deleted** — nothing ever wrote to it. **A By badge card** splits the Growth
+window by kind of work. **The log is searchable and exports as CSV.** And
+**Web Push**: a second Settings switch, `sw.js` gained `push` /
+`pushsubscriptionchange`, and `functions/` holds the scheduled sender. No schema
+change; `state.backlog` simply stops being read, and old snapshots keep the key
+harmlessly.
+
+> **Push is deployed by you, not by an agent.** `functions/` needs the Blaze
+> plan, three secrets and one `firebase deploy --only functions` — see the
+> README's *Reminders that fire with the app closed*. Until that runs, the
+> switch reads "No push server is set up for this app yet" and the old limit
+> stands. Nothing else in the app depends on it.
+
+**In `2026-08-10.1`:** a **skipped task is struck through and sinks**, like
 a finished one, on Today and in Plan — one `settledOn(t,date)` predicate drives
 both the strike and the ordering, so the two can never disagree. No schema
 change.
@@ -152,6 +171,10 @@ they are here because they will bite again.
 | Deleting a badge, group or label taking the work with it | `deleteBadge` unfiles its tasks (`badgeId:''`) and keeps every one of them. A label is not the work. Deleting a *parent task* is the one place a subtree is genuinely removed. |
 | A pre-filled duration | The minutes field starts empty and the save is refused without one. A default 45 flowed into capacity, progress percentages and estimate accuracy as though the user had chosen it, which made the accuracy figure measure its own input. For the same reason the completion sheet no longer pre-fills the actual with the estimate. |
 | A field that exists in the model before it exists in the UI | `until` was honoured by `seriesDueDates` from the start, and `createSeries` blanked it immediately after building the rule — harmless while nothing could set it, a silent data loss the day the input appeared. When you give a stored field a control, grep for every place that writes the field, not just the place that reads it. |
+| A day's own account living only on its tasks | The review and the midnight carry both **move** the unfinished work to another date, and a task exists on exactly one date. Read the day off `s.tasks` alone and the day it was missed on shows nothing — its whole session card was even filtered out for having no live rows. `history[date].skips` is where that account survives; Today replays it as struck read-only rows and counts its minutes into the day's planned total. Add another way to close a day and it must write that record too. |
+| `pushOn` treated like the other settings | It is per **device**, not per account, so it is deliberately not in `PERSIST_KEYS`. The browser's own subscription is the truth — it survives a reinstall and dies with the profile — and `refreshPush()` reads it back each session. Persist it and one phone claims the other phone's registration. |
+| A Realtime Database read with no timeout | Offline, `once('value')` never settles — it does not reject, it simply never returns. The VAPID lookup is raced against 8 seconds because without it the push switch sat on "Working…" for as long as the app stayed open. Any read on a user-visible path needs the same treatment. |
+| A `push` handler that shows nothing | Every browser implementing Web Push requires a visible notification per push received. Swallow one and the permission is revoked. A payload that fails to parse still has to show something. |
 | A repeat rule that forgets what it has filed | `series.made` is a due-date map, and it is the only thing standing between "I deleted that occurrence" and it reappearing on the next launch. Firebase deletes an empty map entirely, so a brand-new rule comes back with no `made` at all — `syncSeries` therefore also scans the tasks on the board (`seriesId@dueDate`) before filing. Remove either guard and repeats duplicate. |
 | Filing occurrences outside `rollForward` | There is no scheduler in this app. `syncSeries` runs from `rollForward`, which runs on mount, after a cloud load, and whenever the clock crosses midnight with the app open. Put filing anywhere else and a device that is merely opened stops catching up. |
 | Auto-split's day formula used to spread points across the *whole* span with rounding | A week task's own span (once dated by the month split) is 8 inclusive calendar days, not 7, because only the month split's non-first parts get their start pushed a day late to stay contiguous — the first part keeps the extra day. Splitting that first part into 7 days with `round(span*i/(n-1))` then skips one real calendar day in the middle (Wed, between Tue and Thu). Fixed by anchoring day parts to the end date and walking back one day at a time (`addDays(end, i-(n-1))`, clamped so it never passes the start) — gap-free by construction, identical output to the old formula whenever the span was already exact. |
@@ -274,11 +297,12 @@ offline and image-queue harness coverage remains intact.
 - **A repeat has no end date in the UI.** `until` exists in the model and
   `seriesDueDates` honours it; nothing sets it. Pause is the way to stop a rule
   without losing it.
-- **Repeats do not notify.** A deadline lands on the right day in the app and
-  nowhere else, for the same reason nothing else here can: no push server.
-- **Notifications cannot fire while the app is closed.** Real alarms need Web
-  Push and a server; `sw.js` already handles `notificationclick`, so the client
-  half is done.
+- **Repeats notify once the function is deployed.** `functions/index.js` sends
+  the day's brief, deadlines first, at each device's own reminder time in its
+  own timezone. Undeployed, a deadline still lands on the right day in the app
+  and nowhere else.
+- **In-page alerts still cannot fire while the app is closed** and never will:
+  no page, no timers. That is what the push switch is for.
 - **Card images now sync.** They stay out of the debounced `PERSIST_KEYS`
   payload — megabytes of base64 have no business in a realtime sync — and are
   written one key at a time to `users/<uid>/cardImages/<cardId>`, with
@@ -289,11 +313,10 @@ offline and image-queue harness coverage remains intact.
   week are filed on those future dates, so they do not appear on Today until
   that day arrives. That is the intended reading of "assigned on a daily basis"
   — confirm, or change it so they all land on today.
-- **`state.backlog` is still dead.** The Today screen has a whole "Backlog" card
-  gated on `hasBacklog`/`backlogCount`, reasons, "move to tonight" / "move to
-  Saturday" — but nothing in the current code ever pushes an item into it.
-  The evening review's two destinations (`applyReview('tomorrow' | 'weekend')`)
-  write straight back into `tasks`, so the card still never renders. Review
-  reasons no longer depend on backlog: they are preserved in `history` and
-  drive the Dashboard's planned/done/skipped, session and reason analysis.
-  Reviving backlog remains a separate product decision.
+- **`state.backlog` is gone**, along with its card, its three methods and its
+  CSS. Nothing had ever written to it: the review's two destinations
+  (`applyReview('tomorrow' | 'weekend')`) write straight back into `tasks`, so
+  the card could not render, and its buttons rebuilt a task from scratch under
+  a new id — losing its series, its parent and its badge. Dating the task,
+  which already works, is the better version of what it was for. Review reasons
+  never depended on it: they live in `history` and drive the Dashboard.

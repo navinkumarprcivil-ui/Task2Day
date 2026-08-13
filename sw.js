@@ -11,7 +11,7 @@
    those genuinely do not change and are what make an offline open fast.
 
    Bump CACHE when you redeploy anyway; it clears the old entries out. */
-const CACHE = 'task2day-v33';
+const CACHE = 'task2day-v34';
 const SHELL = [
   './',
   './index.html',
@@ -84,11 +84,49 @@ self.addEventListener('message', e => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
+/* A push from the server. This is the only thing in the app that can reach you
+   with the app closed: nothing on the page runs once the tab is gone, so an
+   in-page timer can only ever fire while you are already looking at it.
+
+   The payload is JSON written by the Cloud Function in functions/index.js. A
+   push with no body at all still has to show something — every browser that
+   supports Web Push requires a visible notification for each push received,
+   and silently swallowing one costs the app its permission. */
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) {
+    try { data = { body: e.data.text() }; } catch (err2) { data = {}; }
+  }
+  const title = data.title || 'Task2Day';
+  const options = {
+    body: data.body || 'You have work due today.',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    // one tag per kind, so this morning's reminder replaces this morning's
+    // reminder rather than stacking three of them up the lock screen
+    tag: data.tag || 'task2day-push',
+    renotify: true,
+    requireInteraction: false,
+    data: { url: data.url || './index.html' }
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+/* The browser can retire a subscription on its own — a long silence, a cleared
+   profile, a rotated key. The old endpoint is dead at that moment, so the page
+   has to be told to register the new one; it re-subscribes on its next open. */
+self.addEventListener('pushsubscriptionchange', e => {
+  e.waitUntil(self.clients.matchAll({ includeUncontrolled: true }).then(list => {
+    list.forEach(c => c.postMessage({ type: 'PUSH_SUBSCRIPTION_LOST' }));
+  }));
+});
+
 // If a notification is clicked, focus the app rather than opening a second window.
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './index.html';
   e.waitUntil(self.clients.matchAll({type:'window'}).then(list => {
     for (const c of list) if ('focus' in c) return c.focus();
-    return self.clients.openWindow('./index.html');
+    return self.clients.openWindow(url);
   }));
 });
