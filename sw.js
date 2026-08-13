@@ -11,7 +11,7 @@
    those genuinely do not change and are what make an offline open fast.
 
    Bump CACHE when you redeploy anyway; it clears the old entries out. */
-const CACHE = 'task2day-v34';
+const CACHE = 'task2day-v35';
 const SHELL = [
   './',
   './index.html',
