@@ -1,9 +1,16 @@
 # Handoff — where Task2Day stands
 
-Updated for build `2026-08-13.1`. Read this first in a new session; the README has
+Updated for build `2026-08-13.2`. Read this first in a new session; the README has
 the architecture, this has the state and the traps.
 
-**New in `2026-08-13.1`:** a **day now shows the work it missed**, struck
+**New in `2026-08-13.2`:** **a skipped routine settles like a skipped task** —
+struck through and sunk below the work still to do. `settledOn` was written for
+tasks and only tasks: a routine's strike tested `done` alone, so a skipped one
+kept full-strength text, and nothing ever sorted the routine list, so it also
+kept its place at the top of the session. A skipped gym session sat above
+everything still to be done.
+
+**In `2026-08-13.1`:** a **day now shows the work it missed**, struck
 through, on the day it missed it — the review and the midnight carry both move
 the task to another date, so the day it was actually missed on had no row left
 to strike and read as though nothing had been asked of it; the account is
@@ -171,6 +178,7 @@ they are here because they will bite again.
 | Deleting a badge, group or label taking the work with it | `deleteBadge` unfiles its tasks (`badgeId:''`) and keeps every one of them. A label is not the work. Deleting a *parent task* is the one place a subtree is genuinely removed. |
 | A pre-filled duration | The minutes field starts empty and the save is refused without one. A default 45 flowed into capacity, progress percentages and estimate accuracy as though the user had chosen it, which made the accuracy figure measure its own input. For the same reason the completion sheet no longer pre-fills the actual with the estimate. |
 | A field that exists in the model before it exists in the UI | `until` was honoured by `seriesDueDates` from the start, and `createSeries` blanked it immediately after building the rule — harmless while nothing could set it, a silent data loss the day the input appeared. When you give a stored field a control, grep for every place that writes the field, not just the place that reads it. |
+| A predicate written for tasks, applied to tasks only | `settledOn` sank and struck skipped **tasks** and nothing else. Routines are a separate list with their own row builder, so their strike still tested `done` alone and no code sorted them at all — a skipped routine stayed unstruck at the top of the session. Settled routines now render in their own `sc-for` **after** the tasks, because routines and tasks are separate lists and cannot interleave. Anything that adds a third kind of row needs the same two things: the predicate and a place to sink to. |
 | A day's own account living only on its tasks | The review and the midnight carry both **move** the unfinished work to another date, and a task exists on exactly one date. Read the day off `s.tasks` alone and the day it was missed on shows nothing — its whole session card was even filtered out for having no live rows. `history[date].skips` is where that account survives; Today replays it as struck read-only rows and counts its minutes into the day's planned total. Add another way to close a day and it must write that record too. |
 | `pushOn` treated like the other settings | It is per **device**, not per account, so it is deliberately not in `PERSIST_KEYS`. The browser's own subscription is the truth — it survives a reinstall and dies with the profile — and `refreshPush()` reads it back each session. Persist it and one phone claims the other phone's registration. |
 | A Realtime Database read with no timeout | Offline, `once('value')` never settles — it does not reject, it simply never returns. The VAPID lookup is raced against 8 seconds because without it the push switch sat on "Working…" for as long as the app stayed open. Any read on a user-visible path needs the same treatment. |
