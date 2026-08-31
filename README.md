@@ -115,6 +115,40 @@ project means a new hostname, and the old entry does not cover it — the app wi
 load and the sign-in button will simply fail. Vercel also mints a unique preview
 URL per deployment; those are not covered by the production entry either.
 
+### Signing in on a cold first load
+
+The gate covers the whole app until auth resolves, so everything about that
+first load is load-bearing.
+
+* **The readiness poll is bounded.** `window.__firebaseReady` polls for a
+  namespace that has `auth` and `database`, and it now gives up after 12
+  seconds instead of polling for ever. Unbounded, an SDK that never arrived — a
+  blocked script, a dead connection — left *"Checking your sign-in…"* on screen
+  permanently, with no button to press and nothing said about why. On failure
+  the gate shows the button anyway with an explanation, and `signIn` waits for
+  the SDK **itself**, re-polling on every call, so a tap works the moment it
+  turns up rather than answering "still loading" for ever.
+* **A busy state.** `authBusy` puts the gate on *"Signing you in…"* and takes
+  the button away for the whole of the popup. Without it a second tap started a
+  second popup, which cancels the first and reports
+  `auth/cancelled-popup-request` — sign-in reading as failed because it was
+  asked for twice. It is cleared by `beginUserSession`, so the wait ends exactly
+  when the account arrives.
+* **Popup, then redirect.** Installed PWAs and in-app browsers block popups
+  outright or do not implement them at all. `auth/popup-blocked` and
+  `auth/operation-not-supported-in-this-environment` fall back to
+  `signInWithRedirect` rather than reporting an error nobody can act on.
+* **`getRedirectResult` on mount.** A redirect sign-in finishes on the *next*
+  load of the app and its failures are reported nowhere else, so a return from
+  Google with an unauthorised domain or a refused consent screen used to land on
+  a gate that just sat there. It is read once at mount; a load with no redirect
+  behind it resolves null and says nothing.
+* **`authMessage` translates the codes that reach people.** Firebase writes its
+  errors for developers ("This domain is not authorized for OAuth operations for
+  your Firebase project…"). Unauthorised domain, no network, blocked popup and
+  an SDK that never loaded each get an answer the person reading it can act on.
+  Closing the Google window is a decision, not a failure, and says nothing.
+
 ### The firebase namespace is not stable
 
 `firebase-app-compat` can be evaluated **twice** in this bundle — the loader
@@ -737,6 +771,44 @@ the finger lifts — a render mid-gesture would rebuild the rows and strip the
 transforms it is driving. `_dragging` holds the clock and recall timers still
 while it runs.
 
+## Priority is a signal, not a field
+
+`priority` is `High` / `Med` / `Low`, stored on the task and on repeat rules,
+and for a long time it did close to nothing: a tag that appeared only on rows
+which were neither first nor timed, and a sort tiebreak that could never fire,
+because every task is created with an explicit `order` and the tiebreak sits
+below it. Three things read it now.
+
+**A light on every row.** A 4px bar down the left edge of each task row, on
+Today and on Plan alike. Colour says the level (`--color-accent-2-600`,
+`--color-accent-500`, `--color-neutral-400`) and so does the bar's **height**
+(100% / 62% / 34%), so it survives a glance, a greyscale screenshot and colour
+blindness. A row already ruled on — done or skipped — keeps its light at 0.3
+opacity, the same way its text goes to half strength.
+
+**"Do first".** The badge used to land on whatever was at the top of the
+session, which made it a restatement of the order rather than advice, and it
+would happily land on a skipped row. It is the highest priority still open in
+that session now, first row at that level, so the order you set still decides
+between equals.
+
+**A Dashboard card.** *By priority* splits the same four weeks as *Growth* and
+*By badge* by the level on each task: share finished, count, and the time it
+actually took. The headline is the useful reading — low priority finishing well
+above high priority means the day is going to whatever is easiest, and no
+single completion percentage over everything will ever show that.
+
+`PRIORITIES` is the one place the three levels are defined: `key` is what is
+stored and must never be reworded, `label` is what a person reads, `level` is
+what comparisons use, and `color` / `fill` are what the lights and the picker
+paint. The add sheet's picker wears the same colours as the lights, so a choice
+made there is recognisable on the row without being read.
+
+Priority deliberately does **not** outrank the manual order on Today. Long-press
+ordering is an explicit instruction; a sort that put priority above it would
+snap a dragged row back to where the app preferred it, which is the one thing a
+drag must never do.
+
 ## Images
 
 Attaching a formula opens a cropper: pan and pinch under a fixed square frame,
@@ -1003,6 +1075,40 @@ it as JSON before anything writes over the top.
 One trap, found by measuring: `const data = snap.val()` cannot be reassigned,
 so `data = migrate(data)` threw a `TypeError` that the promise's own `.catch`
 swallowed — the account loaded as empty with no error anywhere. It is `let`.
+
+## "Coming up" is raised by the device, not by the network
+
+The first-open-of-the-day popup lists everything dated in the next fortnight.
+It is raised on the **device's own copy** the moment `loadOfflineState` returns
+one, straight after `rollForward` has landed the carry — not from the cloud
+read. Raised from the cloud read, and then 400ms after that, it arrived several
+seconds into a slow launch, on top of work already in progress instead of ahead
+of it, and on a failed read it never arrived at all.
+
+The cloud path still raises it, for a device with no local copy yet — a first
+sign-in, a new browser — so both entry points are covered. `maybeDigest` is
+guarded twice over: `lastDigest` keeps it to once a day across devices, and an
+instance flag keeps it to once a **launch**, so the cloud read landing seconds
+behind the local one cannot put the card back up over a day already read and
+dismissed.
+
+`rollForward(after)` takes that callback for exactly this reason: anything with
+something to say about the day must say it after the carry has been applied, or
+it reads a state where yesterday's unfinished work is still filed on yesterday.
+
+## Only yesterday is ever asked for
+
+Every past day with work on it is closed into `history` with `reviewed:false`,
+and the Dashboard banner used to offer the most recent of them. Come back after
+a week away and that was a queue: answer yesterday, and the day before appears,
+and behind it the day before that. Nobody can honestly reconstruct why a task
+slipped nine days ago, and a prompt that cannot be answered honestly is worse
+than no prompt.
+
+The banner offers **yesterday and nothing older**; today is reviewed from Today
+itself with *Review the day*. Older days keep their record — they still count in
+the Dashboard's four weeks and are still readable, day by day, in the log. They
+are simply never asked about again.
 
 ## The streak measures days, not paperwork
 
