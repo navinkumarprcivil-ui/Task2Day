@@ -1,9 +1,25 @@
 # Handoff — where Task2Day stands
 
-Updated for build `2026-08-31.1`. Read this first in a new session; the README has
+Updated for build `2026-08-31.2`. Read this first in a new session; the README has
 the architecture, this has the state and the traps.
 
-**New in `2026-08-31.1`:** four things, no schema change.
+**New in `2026-08-31.2`:** the two follow-ups to `.1`, no schema change.
+**Priority is now said in words** — every task row carries a High / Medium /
+Low chip with a dot in the light's colour, and the vague labels that used to
+stand there ("Must do" / "If time" / "Skip if short") are gone; the state tag
+says state only, and disappears when there is none. **The review backlog is
+closed in the data, not just hidden from the banner**: `rollForward` sweeps
+every history record older than yesterday that is still `reviewed:false` to
+`reviewed:true` + `autoClosed:true`, before the once-a-day guard, so an account
+arriving with a backlog is settled for every reader of it — including the same
+account on a second device and any client cached from before the rule. The log
+tells the two apart (`autoClosed` reads *closed*, never *reviewed*). And
+**yesterday with nothing on it is no longer asked about**, reversing the older
+"always leave yesterday reviewable, including a 0-task rest day" decision: over
+a stretch the app never saw, that was a prompt every morning to grade a day
+that asked nothing of you.
+
+**In `2026-08-31.1`:** four things, no schema change.
 
 **Priority does something now.** It was collected on every task and spent on
 almost nothing — a tag that only appeared on rows which were neither first nor

@@ -786,6 +786,15 @@ Today and on Plan alike. Colour says the level (`--color-accent-2-600`,
 blindness. A row already ruled on — done or skipped — keeps its light at 0.3
 opacity, the same way its text goes to half strength.
 
+**And the word, on a chip.** A colour is a hint; a word is not. Every row also
+carries a `.tag` reading **High / Medium / Low** with a dot in the light's own
+colour. What used to stand in that spot — *"Must do" / "If time" / "Skip if
+short"* — was the priority said in vaguer words, and it was the **only** place
+priority appeared: set a task to High and the row could still read "Do first",
+or nothing you would connect to the level you picked. The state tag now says
+state (`Done`, `9:00 fixed`, `Do first`) and nothing else, and it is dropped
+entirely when there is no state to report.
+
 **"Do first".** The badge used to land on whatever was at the top of the
 session, which made it a restatement of the order rather than advice, and it
 would happily land on a skipped row. It is the highest priority still open in
@@ -1109,6 +1118,25 @@ The banner offers **yesterday and nothing older**; today is reviewed from Today
 itself with *Review the day*. Older days keep their record — they still count in
 the Dashboard's four weeks and are still readable, day by day, in the log. They
 are simply never asked about again.
+
+**It is settled in the data, not only in the view.** A day left flagged
+`reviewed:false` is a day some *other* reader can put back in front of you — the
+same account opened on a second device, a client still cached from before this
+rule existed. `rollForward` closes the backlog outright: every history record
+older than yesterday that is still `reviewed:false` becomes `reviewed:true` with
+an **`autoClosed:true`** marker, and it does that before the once-a-day guard,
+because an account can arrive carrying a backlog on a day already rolled. New
+records are written the same way: only yesterday is left open.
+
+`autoClosed` is what keeps the log honest — a day the app closed on its own is
+not a day you reviewed, so the log reads *closed*, in the neutral colour, and
+only a day you actually answered for reads *reviewed*.
+
+**Yesterday with nothing on it is not asked about either.** This used to leave a
+0-task rest day reviewable for the sake of its satisfaction score. Over a
+stretch of days the app never saw, that means being asked every morning to grade
+a day that asked nothing of you. Yesterday is offered only when it had a task or
+a routine on it.
 
 ## The streak measures days, not paperwork
 
