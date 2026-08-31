@@ -1,9 +1,52 @@
 # Handoff — where Task2Day stands
 
-Updated for build `2026-08-13.2`. Read this first in a new session; the README has
+Updated for build `2026-08-31.1`. Read this first in a new session; the README has
 the architecture, this has the state and the traps.
 
-**New in `2026-08-13.2`:** **a skipped routine settles like a skipped task** —
+**New in `2026-08-31.1`:** four things, no schema change.
+
+**Priority does something now.** It was collected on every task and spent on
+almost nothing — a tag that only appeared on rows which were neither first nor
+timed, and a sort tiebreak that could never fire, because every task is created
+with an explicit `order` and the tiebreak sits below it. Three readers were
+added: a **light** down the left edge of every task row on Today and Plan, where
+colour *and* height both carry the level (so it survives greyscale and colour
+blindness) and a settled row's light dims with its text; **"Do first"**, which
+is now the highest priority still open in that session rather than a
+restatement of the top of the list; and a **By priority** card on the Dashboard
+splitting the same four weeks as Growth by level — share finished, count, real
+minutes. `PRIORITIES` is the single definition of the three levels and the add
+sheet's picker wears the same colours. Priority deliberately does **not**
+outrank long-press order: a sort that did would snap a dragged row back.
+
+**"Coming up" arrives on time.** It was raised only by the cloud read, and then
+400ms after that, so on a slow connection it landed several seconds into the
+session on top of work already in progress — and on a failed read, never. It is
+raised off the device's own copy the moment `loadOfflineState` returns one, via
+a new `rollForward(after)` callback so it never reads a state where yesterday's
+work is still filed on yesterday. The cloud path still covers a device with no
+local copy. `lastDigest` keeps it to once a day; a new instance flag keeps it to
+once a launch, so the later cloud read cannot re-raise a dismissed card.
+
+**Only yesterday is asked about.** Every past day with work on it is closed into
+`history` with `reviewed:false`, and the Dashboard banner offered the most
+recent of them — so a week away came back as a queue: answer yesterday, and the
+day before appears, and behind it the one before that. The banner now offers
+yesterday and nothing older (today is still reviewed from Today itself). Older
+days keep their records, keep counting in the four weeks, and stay readable in
+the log; they are simply never asked about again.
+
+**Sign-in survives a cold first load.** The `__firebaseReady` poll is bounded at
+12s — unbounded, an SDK that never arrived left "Checking your sign-in…" on
+screen for ever with no button and no explanation; `signIn` waits for the SDK
+itself and re-polls, so a retry works. `authBusy` shows "Signing you in…" and
+removes the button for the length of the popup, so a second tap can no longer
+cancel the first into `auth/cancelled-popup-request`. A blocked or unsupported
+popup falls back to `signInWithRedirect`, and `getRedirectResult` is read at
+mount so a redirect that fails says why instead of returning to a dead gate.
+`authMessage` translates the codes that actually reach people.
+
+**In `2026-08-13.2`:** **a skipped routine settles like a skipped task** —
 struck through and sunk below the work still to do. `settledOn` was written for
 tasks and only tasks: a routine's strike tested `done` alone, so a skipped one
 kept full-strength text, and nothing ever sorted the routine list, so it also
