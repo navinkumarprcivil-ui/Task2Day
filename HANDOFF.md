@@ -1,7 +1,45 @@
 # Handoff — where Task2Day stands
 
-Updated for build `2026-08-31.2`. Read this first in a new session; the README has
+Updated for build `2026-09-05.1`. Read this first in a new session; the README has
 the architecture, this has the state and the traps.
+
+**New in `2026-09-05.1`:** five UI fixes and one rule change, no schema change.
+
+**A task can carry a checklist.** Optional, written in the add sheet, stored on
+the task as `checklist:[{id,text,done}]`. It is not a breakdown — a breakdown
+makes real dated tasks with their own minutes, these are the steps inside one
+task, the things that used to be written into the note with no way to tick them
+off. Today and Plan show them collapsed under the row (`▸ 1 of 3 steps done`)
+and take the ticks there; ticking every step does not finish the task, because
+finishing asks for real minutes. A repeat carries its steps: each occurrence
+gets its own untouched copy, and editing the rule keeps a step already ticked on
+an open occurrence.
+
+**A full session is now actually full.** The capacity figure was advisory — the
+sheet let anything in and said "over by 40 minutes" afterwards. `fitCheck`
+decides, and a task that does not fit is not added: the sheet closes onto a
+chooser naming the sessions with room that day and the next date this session
+has room on. The same check runs before the evening review carries work
+forward, one session's group at a time; carrying keeps an "anyway" escape,
+because a day already lived cannot have its leftovers refused. A capacity of 0
+means the session has no stated hours and nothing is measured; a fixed-time
+appointment is never blocked, since it happens at that hour either way.
+Breaking a target down still files its parts without asking.
+
+**The black slab in the middle of the screen is gone.** A toast fired while the
+add sheet was open is pinned to `top:12px` so it clears the sheet's own Save
+button — a phone arrangement, and desktop's `.toast` rule sets `bottom` with
+`!important`. The two together stretched one line of text from the top of the
+window to the bottom of it. Under a mouse the toast now keeps one edge.
+
+**The sign-in error no longer flashes on launch.** `getRedirectResult`'s
+rejection was reported the moment it arrived, painting a failure over the gate
+of an ordinary launch while the account was still resolving. It is held in
+`_redirectError` and shown only when Firebase actually says signed out.
+
+**The sample data in the add fields was placeholder text** — "Finish computer
+networks", "Badminton", "Bayes' theorem". It read as prefilled content. Every
+one of them now says what the field wants instead.
 
 **New in `2026-08-31.2`:** the two follow-ups to `.1`, no schema change.
 **Priority is now said in words** — every task row carries a High / Medium /

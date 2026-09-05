@@ -390,6 +390,13 @@ session, so both the dates and daily effort are even and gap-free.
 Day tasks carry a **description** as well as a name: the title is what it is, the
 description is what to actually do.
 
+A task can also carry an optional **checklist** — `checklist:[{id,text,done}]`,
+written in the add sheet, shown collapsed under the row on Today and Plan and
+ticked there. It is deliberately not a breakdown: a breakdown makes real dated
+tasks with their own minutes and dates, while a checklist is the steps inside
+one task. Ticking every step does not finish the task; the row's own circle
+still does that, because finishing asks for the real minutes it took.
+
 **Durations are never invented.** The minutes field starts empty and the sheet
 refuses to save without a real figure, or without *Instant* — which is the
 honest way to say "this takes no time". A pre-filled 45 was a number nobody
@@ -722,6 +729,22 @@ The three sessions are `morning` / `noon` / `evening` as **keys**, labelled
 Morning / **Busy Hours** / Evening in `BLOCKS`. Keys are what stored tasks and
 hours are filed under, so a label can be reworded without touching anyone's
 data — reword the label, never the key.
+
+**A full session refuses work.** Capacity used to be advisory: the add sheet
+accepted anything and said "over by 40 minutes" afterwards, which is a number
+you read once and then work past. `fitCheck(date, block, minutes)` now decides,
+and a task that does not fit is not created — the sheet closes onto a chooser
+offering the sessions with room that day and the next date that same session
+has room on, and the task is built from whichever is picked. The evening
+review runs the same check before it carries work forward, one session's group
+at a time, and there keeps a "carry it in anyway" escape: a day already lived
+cannot have its leftovers refused outright.
+
+Two things are never blocked. A session whose capacity is `0` has no stated
+hours, so there is nothing to measure against; and a task with a fixed time is
+an appointment that happens at that hour whether or not the session has room.
+Breaking a target down also files its parts without asking — the split is the
+plan, and it is reshaped by editing the target.
 
 Office-day chips are built from `DAYS`, **not** `Object.keys(state.office)`.
 Firebase hands an object's keys back in lexicographic order, so after one cloud
