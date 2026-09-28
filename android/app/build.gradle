@@ -7,7 +7,7 @@ android {
         applicationId "app.task2day"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (project.findProperty("versionCode") ?: "1") as Integer
+        versionCode Integer.parseInt((project.findProperty("versionCode") ?: "1").toString())
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
