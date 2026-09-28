@@ -1,7 +1,40 @@
 # Handoff — where Task2Day stands
 
-Updated for build `2026-09-05.1`. Read this first in a new session; the README has
+Updated for build `2026-09-28.1`. Read this first in a new session; the README has
 the architecture, this has the state and the traps.
+
+**New in `2026-09-28.1`:** fixes to `.09-05.1`'s capacity rule, found in a full
+check, no schema change.
+
+**The check and the bar now add up the same way.** `fitCheck` counted open
+tasks only, so a routine's minutes and work already finished were room it
+thought it had: with a 60-minute routine the Morning bar read 60/90 and a
+60-minute task was still accepted, landing on "Over by 30 minutes" — the exact
+thing the rule exists to stop. `sessionLoad(date, block)` is now the one sum,
+and the session bar on Today calls it too. Change one, you change both.
+
+**A session that is over can be fixed where it says so.** The add sheet is not
+the only door into a session: the silent midnight carry, an edit, a repeat
+filing and a target's breakdown all file work without asking. Rather than
+guard each, the "Over by N minutes" line carries a **Find room** button
+(today and ahead only). It picks the lowest-priority open, untimed work —
+then carried work, then whatever is last in your order — just enough to clear
+the overflow, lists it, and offers the same destinations as the add chooser.
+
+**One carry, one free hour.** The review's chooser placed groups one at a time
+against the board as it stood, so a group that fit and stayed, or a group
+placed a moment earlier, did not count — two full sessions could both be
+offered the same free Evening. Promised minutes are now passed through as
+`pending` (keyed `date|block`).
+
+**The review stopped making promises it does not check.** "Saturday has the
+most room this week" was fixed text, and "small enough to absorb tomorrow"
+compared against Evening's size alone. Both read `carryPlan` now — the same
+reckoning `applyReview` uses to decide whether to ask.
+
+**A failed redirect sign-in is never swallowed.** `.09-05.1` held the error
+until Firebase said signed out; if that verdict had already arrived, there was
+no later moment and it was dropped. It is shown at once in that case.
 
 **New in `2026-09-05.1`:** five UI fixes and one rule change, no schema change.
 

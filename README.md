@@ -740,6 +740,16 @@ review runs the same check before it carries work forward, one session's group
 at a time, and there keeps a "carry it in anyway" escape: a day already lived
 cannot have its leftovers refused outright.
 
+What counts as spent is `sessionLoad(date, block)` — finished work at its real
+minutes, open work at its estimate, routines at their planned length unless
+skipped, nothing for a task skipped that day. The session bar on Today calls the
+same function, so what the bar shows as full is exactly what the sheet refuses.
+
+Work can still reach a full session without passing the sheet — the midnight
+carry, an edit, a repeat filing, a target's breakdown. The "Over by N minutes"
+line on the session carries **Find room** for that: it picks the lowest-priority
+open, untimed work until the overflow clears and asks where it should go.
+
 Two things are never blocked. A session whose capacity is `0` has no stated
 hours, so there is nothing to measure against; and a task with a fixed time is
 an appointment that happens at that hour whether or not the session has room.
