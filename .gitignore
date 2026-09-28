@@ -4,3 +4,11 @@ __pycache__/
 functions/node_modules/
 functions/.env*
 !functions/.env.example
+
+node_modules/
+www/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+*.keystore

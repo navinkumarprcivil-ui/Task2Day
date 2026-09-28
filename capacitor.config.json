@@ -1,0 +1,16 @@
+{
+  "appId": "app.task2day",
+  "appName": "Task2Day",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com"]
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_task2day",
+      "iconColor": "#C2410C"
+    }
+  }
+}
