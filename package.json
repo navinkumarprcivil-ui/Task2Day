@@ -1,0 +1,21 @@
+{
+  "name": "task2day",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Task2Day Android app (Capacitor wrapper around index.html)",
+  "scripts": {
+    "www": "node tools/make-www.js",
+    "sync": "node tools/make-www.js && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor-firebase/authentication": "^7.5.0",
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/local-notifications": "^7.0.7",
+    "firebase": "^11.10.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.9"
+  }
+}

@@ -8,3 +8,11 @@ HANDOFF.md
 functions/
 firebase.json
 database.rules.json
+node_modules/
+www/
+android/
+package.json
+package-lock.json
+capacitor.config.json
+assets/
+ANDROID.md
